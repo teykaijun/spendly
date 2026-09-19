@@ -13,7 +13,9 @@ Three things it does:
 3. **Calendar heatmap** — see at a glance which days were expensive, tap any day
    to see exactly what you spent.
 
-Everything stays on the phone. Nothing is uploaded anywhere.
+Your spending data never leaves the phone. The only network access in the app
+is the optional updater, and it only runs when you press the button — see
+[Privacy](#privacy).
 
 ---
 
@@ -212,7 +214,7 @@ fun `handles my bank`() {
 ```
 
 Then add the missing keyword to `SPEND_KEYWORDS` or `REJECT_KEYWORDS` in
-`NotificationParser.kt`. There are 30 tests covering the cases above, so you'll
+`NotificationParser.kt`. There are 36 parser tests covering the cases above, so you'll
 know immediately if a change breaks something else.
 
 You can also move the **Sensitivity** slider in Settings — it's the minimum
@@ -220,21 +222,122 @@ confidence a detection needs before Spendly records it at all.
 
 ---
 
+## Updating the app
+
+Settings → **Updates**. Set an update source once, then one button does the
+whole thing: check, download, verify, install.
+
+### What "automatically" can and cannot mean
+
+The app downloads and verifies the new build by itself, then opens Android's
+installer. **You still have to tap "Install" on the system dialog.** Installing
+without that requires the privileged `INSTALL_PACKAGES` permission, which only
+system and device-owner apps can hold. No sideloaded app can skip it — if one
+claims to, it is either preinstalled or lying.
+
+So: one tap instead of "find the APK, open a file manager, tap through a
+browser warning", but not unattended.
+
+### Setting up the source
+
+Two shapes are accepted in the **Update source** box:
+
+**A GitHub repository** — type `your-name/spendly` (or paste the repo URL). The
+app reads the latest *published* release (drafts and pre-releases are skipped)
+and looks for an `.apk` asset. The version comes from the tag: `v1.2.0` or
+`1.2.0`, where each part must stay under 100 (`1.4.2` sorts after `1.4.1`, and
+`1.10` correctly outranks `1.9`).
+
+**A JSON file you host** — paste an `https://` URL serving:
+
+```json
+{
+  "versionCode": 12,
+  "versionName": "1.2.0",
+  "apkUrl": "https://example.com/spendly-1.2.0.apk",
+  "sizeBytes": 12459474,
+  "notes": "What changed",
+  "sha256": "optional lowercase hex digest of the apk"
+}
+```
+
+`http://` is refused in both cases, not silently upgraded — the thing being
+fetched gets installed.
+
+### You need a stable signing key first
+
+**This is the part that catches everyone.** Android refuses to install an update
+signed with a different key than the installed app. The debug keystore is
+generated per machine, so builds from two computers can never update each other.
+
+Create one release keystore and keep it safe:
+
+```bash
+keytool -genkeypair -v -keystore spendly-release.jks -alias spendly -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Then copy `keystore.properties.example` to `keystore.properties` (git-ignored)
+and fill it in. Builds without that file still work — they fall back to debug
+signing — they just can't be updated from elsewhere.
+
+> Lose that keystore and you can never update an installed copy again, only
+> uninstall and reinstall. Back it up somewhere other than this repo.
+
+### Publishing a new version
+
+1. Bump `versionCode` and `versionName` in `app/build.gradle.kts`.
+2. `./gradlew assembleRelease`
+3. Attach `app/build/outputs/apk/release/app-release.apk` to a GitHub release
+   tagged `v<versionName>`.
+
+The installed app will find it on the next check.
+
+### What is checked before anything installs
+
+A downloaded APK is code that is about to run on your phone, so it is verified
+before the installer ever sees it:
+
+- **HTTPS throughout**, with redirects re-checked at every hop, and cleartext
+  blocked by network security config.
+- **SHA-256** matched, when the feed publishes one.
+- **Package name** must be this app's.
+- **Version** must be strictly newer than what is installed.
+- **Signing certificate** must match the installed app's.
+
+Anything that fails deletes the file and says why, instead of handing a
+suspicious APK to the system installer.
+
+---
+
 ## Privacy
 
-Short version: **the app has no internet permission**, so it cannot send your
-data anywhere even if there were a bug that tried to.
+**Your spending data never leaves the phone.** Nothing reads the database and
+writes it to a network socket — there is no such code path, and no analytics,
+crash-reporting or telemetry SDK anywhere in the dependency list.
 
-You can check that claim yourself rather than taking my word for it:
+The app does now hold `INTERNET`, because the in-app updater needs it. You can
+see exactly what it has:
 
 ```bash
 # The merged manifest is the final word on what the app can do.
 grep uses-permission app/build/intermediates/merged_manifest/debug/*/AndroidManifest.xml
 ```
 
-The only permission is `POST_NOTIFICATIONS` (to show the tap-to-confirm alerts).
-There is no `INTERNET`, no `ACCESS_NETWORK_STATE`, and no analytics, crash
-reporting or telemetry SDK anywhere in the dependency list.
+| Permission | What it is for |
+|---|---|
+| `POST_NOTIFICATIONS` | The tap-to-confirm alerts. |
+| `INTERNET` | **Updater only.** Two HTTPS requests: read the release feed, download the APK. |
+| `REQUEST_INSTALL_PACKAGES` | **Updater only.** Hand that APK to Android's installer. Does *not* allow silent installs. |
+
+> **This is a real change from the first version, which had no network access at
+> all.** That was a structural guarantee — the app *couldn't* leak data because
+> it had no way to. Now the guarantee is behavioural: it doesn't, because no code
+> does. That is weaker, and it is the price of the update button. If you would
+> rather have the stronger version back, deleting the `update/` package and the
+> two permissions restores it, and the rest of the app is untouched.
+
+The updater makes **no request unless you press "Check for updates"**, unless you
+turn on "Check when the app opens", which ships off.
 
 What happens to your notification and email text:
 
@@ -252,8 +355,11 @@ Two more things worth knowing:
   would otherwise upload the database to your Google Drive, which is data
   leaving the phone through a system path the app doesn't control. Phone-to-phone
   transfer is still enabled, because that's a local transfer.
-- **CSV export is the only way data leaves**, and only when you tap it and pick
-  where it goes. It's shared through a `FileProvider` scoped to one cache folder.
+- **CSV export is the only way your spending data leaves**, and only when you
+  tap it and pick where it goes. It's shared through a `FileProvider` scoped to
+  one cache folder.
+- **The updater only ever sends a plain GET.** No identifiers, no device
+  information beyond what any HTTP client sends, no request body.
 
 Notification access is a genuinely broad permission — Spendly *can* see every
 notification on the phone, and Android warns you about exactly that when you
@@ -295,11 +401,12 @@ app/src/main/java/com/spendly/
 ├── data/           Room entities, DAOs, repository, money formatting, prefs
 ├── parser/         Notification → spend. Pure Kotlin, no Android deps, tested
 ├── notify/         NotificationListenerService + the confirm-from-shade actions
+├── update/         The in-app updater: feed, download, verification, install
 └── ui/
     ├── quickadd/   The two-tap entry screen
     ├── calendar/   Heatmap grid + day drill-down
     ├── inbox/      The confirm queue
-    ├── settings/   Currency, capture controls, per-app switches, CSV export
+    ├── settings/   Currency, capture controls, per-app switches, updates, CSV
     └── theme/      Material 3 theme and the heatmap colour ramp
 ```
 
@@ -343,8 +450,10 @@ Pinned to what was installed on the build machine, to keep a clean build cheap:
   the calendar is showing rather than getting a blended total from an invented
   rate.
 - **The UI has not been run on a device.** It compiles, passes lint with zero
-  findings, and the parser has 30 passing unit tests — but there was no emulator
+  findings, and 54 unit tests pass (parser + updater) — but there was no emulator
   or phone available on the build machine, so layout and interaction haven't
   been exercised. Expect to nudge some spacing.
+- **Updates are not unattended** — Android always asks you to confirm. See
+  [Updating the app](#updating-the-app).
 - Editing an existing entry isn't implemented yet — you delete and re-add.
 - Categories are fixed to the built-in ten; adding your own isn't wired up yet.

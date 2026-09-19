@@ -34,6 +34,7 @@ import com.spendly.ui.inbox.InboxScreen
 import com.spendly.ui.inbox.InboxViewModel
 import com.spendly.ui.quickadd.QuickAddScreen
 import com.spendly.ui.settings.SettingsScreen
+import com.spendly.ui.settings.UpdateViewModel
 
 enum class Tab(val label: String, val icon: ImageVector) {
     Add("Add", Icons.Default.Add),
@@ -61,6 +62,12 @@ fun SpendlyRoot(
 
     val inboxViewModel: InboxViewModel = viewModel()
     val pendingCount by inboxViewModel.pendingCount.collectAsStateWithLifecycle()
+
+    // No-ops unless the user turned on "Check when the app opens" in Settings,
+    // which is off by default — so the app normally makes no network request
+    // until the update button is pressed.
+    val updateViewModel: UpdateViewModel = viewModel()
+    LaunchedEffect(Unit) { updateViewModel.checkSilentlyIfEnabled() }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

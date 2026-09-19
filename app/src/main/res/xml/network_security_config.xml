@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The app makes exactly one kind of network request: fetching the update feed
+  and the APK. Both must be HTTPS. Cleartext is refused outright rather than
+  merely discouraged, because the payload of that request gets installed.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

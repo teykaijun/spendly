@@ -213,6 +213,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
         }
 
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+        item { SectionHeader("Updates") }
+        item { UpdateSection() }
+
+        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
         item { SectionHeader("Data") }
 
         item {

@@ -39,6 +39,17 @@ class Prefs private constructor(private val sp: SharedPreferences) {
     private val _capturePaused = MutableStateFlow(sp.getBoolean(KEY_CAPTURE_PAUSED, false))
     val capturePaused: StateFlow<Boolean> = _capturePaused.asStateFlow()
 
+    /** Where the updater looks: "owner/repo" for GitHub, or an https JSON feed. */
+    private val _updateSource = MutableStateFlow(sp.getString(KEY_UPDATE_SOURCE, "") ?: "")
+    val updateSource: StateFlow<String> = _updateSource.asStateFlow()
+
+    /**
+     * Off by default on purpose. While it is off, the app makes no network
+     * request unless you press Check for updates yourself.
+     */
+    private val _checkUpdatesOnOpen = MutableStateFlow(sp.getBoolean(KEY_CHECK_ON_OPEN, false))
+    val checkUpdatesOnOpen: StateFlow<Boolean> = _checkUpdatesOnOpen.asStateFlow()
+
     fun setBaseCurrency(v: String) = set(KEY_CURRENCY, _baseCurrency, v) { putString(KEY_CURRENCY, v) }
     fun setAutoSave(v: Boolean) = set(KEY_AUTO_SAVE, _autoSave, v) { putBoolean(KEY_AUTO_SAVE, v) }
     fun setNotifyOnDetect(v: Boolean) = set(KEY_NOTIFY_ON_DETECT, _notifyOnDetect, v) { putBoolean(KEY_NOTIFY_ON_DETECT, v) }
@@ -46,6 +57,8 @@ class Prefs private constructor(private val sp: SharedPreferences) {
     fun setMinConfidence(v: Int) = set(KEY_MIN_CONFIDENCE, _minConfidence, v) { putInt(KEY_MIN_CONFIDENCE, v) }
     fun setMonthlyBudgetMinor(v: Long) = set(KEY_MONTHLY_BUDGET, _monthlyBudgetMinor, v) { putLong(KEY_MONTHLY_BUDGET, v) }
     fun setCapturePaused(v: Boolean) = set(KEY_CAPTURE_PAUSED, _capturePaused, v) { putBoolean(KEY_CAPTURE_PAUSED, v) }
+    fun setUpdateSource(v: String) = set(KEY_UPDATE_SOURCE, _updateSource, v) { putString(KEY_UPDATE_SOURCE, v) }
+    fun setCheckUpdatesOnOpen(v: Boolean) = set(KEY_CHECK_ON_OPEN, _checkUpdatesOnOpen, v) { putBoolean(KEY_CHECK_ON_OPEN, v) }
 
     private inline fun <T> set(
         @Suppress("UNUSED_PARAMETER") key: String,
@@ -66,6 +79,8 @@ class Prefs private constructor(private val sp: SharedPreferences) {
         private const val KEY_MIN_CONFIDENCE = "min_confidence"
         private const val KEY_MONTHLY_BUDGET = "monthly_budget"
         private const val KEY_CAPTURE_PAUSED = "capture_paused"
+        private const val KEY_UPDATE_SOURCE = "update_source"
+        private const val KEY_CHECK_ON_OPEN = "check_updates_on_open"
 
         @Volatile
         private var instance: Prefs? = null

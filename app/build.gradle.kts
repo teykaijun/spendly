@@ -1,8 +1,26 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+/**
+ * Optional release signing.
+ *
+ * In-app updates only work if every build is signed with the *same* key —
+ * Android refuses to install an update signed by a different one. The debug
+ * keystore is generated per machine, so it cannot be that key. Create
+ * `keystore.properties` (git-ignored, see keystore.properties.example) to sign
+ * releases properly; without it the build still works and falls back to debug
+ * signing, but those APKs cannot update each other across machines.
+ */
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "com.spendly"
@@ -17,6 +35,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -29,8 +58,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Lets you build a signed-with-debug-key release APK for personal use.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                // Still produces an installable APK for local use; just not one
+                // that can be updated from a build made elsewhere.
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
@@ -41,6 +75,8 @@ android {
 
     buildFeatures {
         compose = true
+        // The updater compares BuildConfig.VERSION_CODE against the release feed.
+        buildConfig = true
     }
 
     lint {
@@ -97,4 +133,5 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }
