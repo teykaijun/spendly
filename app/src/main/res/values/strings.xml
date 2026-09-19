@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Spendly</string>
+    <string name="channel_pending_name">Detected spends</string>
+    <string name="channel_pending_desc">Tap-to-confirm alerts for spends found in your notifications</string>
+</resources>

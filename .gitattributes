@@ -1,0 +1,17 @@
+# The Gradle wrapper script must keep LF endings or it will not run on
+# Linux/macOS, even though this repo is primarily edited on Windows.
+gradlew        text eol=lf
+*.sh           text eol=lf
+
+# Windows-only scripts keep CRLF.
+gradlew.bat    text eol=crlf
+*.bat          text eol=crlf
+
+# Never munge line endings in binaries.
+*.jar          binary
+*.apk          binary
+*.aab          binary
+*.png          binary
+*.jpg          binary
+*.webp         binary
+*.keystore     binary
