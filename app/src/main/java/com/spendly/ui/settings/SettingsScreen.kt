@@ -35,12 +35,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.spendly.R
 import com.spendly.data.Money
 import com.spendly.ui.export.ExportSheet
 
@@ -59,6 +62,11 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
 
     var showCurrencyPicker by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
+
+    // Read through stringResource, not context.getString: the latter is not
+    // configuration-aware and would hand back stale values after a config change.
+    val sourceUrl = stringResource(R.string.url_source)
+    val coffeeUrl = stringResource(R.string.url_coffee)
 
     LifecycleResumeEffect(Unit) {
         viewModel.refreshListenerState()
@@ -233,13 +241,35 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
             )
         }
 
+        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+        item { SectionHeader("About") }
+
+        item {
+            SettingRow(
+                title = "Source code",
+                subtitle = "Spendly is open source. Read it, change it, build your own.",
+                onClick = { openUrl(context, sourceUrl) },
+            )
+        }
+
+        item {
+            SettingRow(
+                title = "Buy me a coffee",
+                subtitle = "Spendly is free, has no ads, and collects nothing. If it has " +
+                    "made tracking your spending a little less of a chore, you are very " +
+                    "welcome to buy me a coffee — entirely optional, and using the app " +
+                    "is honestly enough.",
+                onClick = { openUrl(context, coffeeUrl) },
+            )
+        }
+
         item {
             Text(
-                text = "Spendly has no internet permission, so it cannot send anything " +
-                    "anywhere even if it tried. Notification text is parsed in memory; " +
-                    "only the amount, merchant and source app name are kept. Your " +
-                    "history is excluded from Google cloud backup — use the CSV export " +
-                    "above for backups you choose to make.",
+                text = "Your spending data never leaves this phone. Notification text " +
+                    "is parsed in memory; only the amount, merchant and source app name " +
+                    "are kept, and your history is excluded from Google cloud backup. " +
+                    "The only network access is the updater above, which runs when you " +
+                    "press the button.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
@@ -264,6 +294,20 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Opens a link in whatever browser the user has. Wrapped because a device with
+ * no browser at all is rare but real, and a crash from a settings row tap would
+ * be a silly way to lose an app.
+ */
+private fun openUrl(context: android.content.Context, url: String) {
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, url.toUri())
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
 
 @Composable
 private fun SectionHeader(text: String) {

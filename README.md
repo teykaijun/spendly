@@ -536,3 +536,16 @@ Pinned to what was installed on the build machine, to keep a clean build cheap:
   [Updating the app](#updating-the-app).
 - Editing an existing entry isn't implemented yet — you delete and re-add.
 - Categories are fixed to the built-in ten; adding your own isn't wired up yet.
+
+---
+
+## Coffee
+
+Spendly is free, has no ads, and collects nothing. It was built to scratch a
+personal itch — the spending apps I'd tried were fiddly enough that I stopped
+bothering to log anything.
+
+If it's made tracking your spending a little less of a chore and you feel like
+it, you're very welcome to [buy me a coffee](https://buymeacoffee.com/casunoxd).
+Completely optional — using the app, filing an issue, or sending a notification
+format it fails to read are all just as helpful.

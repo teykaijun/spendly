@@ -9,4 +9,7 @@
     <string name="widget_placeholder">—</string>
     <string name="widget_add_spend">+ Add spend</string>
     <string name="empty_placeholder"></string>
+
+    <string name="url_source">https://github.com/teykaijun/spendly</string>
+    <string name="url_coffee">https://buymeacoffee.com/casunoxd</string>
 </resources>
