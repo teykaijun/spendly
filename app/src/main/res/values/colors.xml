@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget colours. A widget lives on the launcher, outside the Compose theme, so
+  it needs its own palette with a night-qualified counterpart.
+-->
+<resources>
+    <color name="widget_background">#FFF3F7F4</color>
+    <color name="widget_text_primary">#FF15201B</color>
+    <color name="widget_text_secondary">#FF5A6560</color>
+    <color name="widget_accent">#FF0C7A5E</color>
+</resources>

@@ -27,3 +27,19 @@ dist/
 build/
 out/
 coverage/
+
+# Android / Gradle
+local.properties
+.gradle/
+*.apk
+*.aab
+*.iml
+captures/
+.cxx/
+app/release/
+app/debug/
+
+# Release signing — never commit keys or their passwords
+keystore.properties
+*.jks
+*.keystore

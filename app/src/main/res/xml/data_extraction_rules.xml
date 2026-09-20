@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ splits "backup to the cloud" from "transfer to a new phone".
+
+  cloud-backup   - excluded. Nothing goes to Google Drive.
+  device-transfer - included. Phone-to-phone migration is a local transfer, so
+                    your history survives a new handset without ever being
+                    uploaded.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="spendly.db" />
+        <exclude domain="sharedpref" path="spendly_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" path="spendly.db" />
+        <include domain="sharedpref" path="spendly_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>

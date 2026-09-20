@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 9-11 cloud backup.
+
+  Spending history is deliberately NOT backed up to the cloud. Android's backup
+  agent uploads to the user's Google Drive, which would mean this data leaving
+  the phone through a system path the app does not control. Use the CSV export
+  in Settings for backups you actually choose to make.
+-->
+<full-backup-content>
+    <exclude domain="database" path="spendly.db" />
+    <exclude domain="sharedpref" path="spendly_prefs.xml" />
+</full-backup-content>
