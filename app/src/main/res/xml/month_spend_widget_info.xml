@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  previewLayout and targetCell* only take effect on Android 12+, where they give
+  a much better picker preview and default size. They are ignored below that,
+  which is exactly the intent, so the API-level warning is suppressed rather
+  than the attributes dropped.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedAttribute"
+    android:initialLayout="@layout/widget_month_spend"
+    android:previewLayout="@layout/widget_month_spend"
+    android:previewImage="@mipmap/ic_launcher"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description"
+    android:updatePeriodMillis="1800000" />

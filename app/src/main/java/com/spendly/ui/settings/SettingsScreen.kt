@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spendly.data.Money
+import com.spendly.ui.export.ExportSheet
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
@@ -57,6 +58,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
     val watchedApps by viewModel.watchedApps.collectAsStateWithLifecycle()
 
     var showCurrencyPicker by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
         viewModel.refreshListenerState()
@@ -221,12 +223,12 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
 
         item {
             SettingRow(
-                title = "Export as CSV",
-                subtitle = "Every entry, as a spreadsheet file you can share or back up.",
+                title = "Export spending",
+                subtitle = "Pick a date range — this month, last month, or any two dates — " +
+                    "see what's in it, then save or share it as a spreadsheet.",
+                onClick = { showExportSheet = true },
                 trailing = {
-                    Button(onClick = {
-                        viewModel.exportCsv { intent -> context.startActivity(intent) }
-                    }) { Text("Export") }
+                    Button(onClick = { showExportSheet = true }) { Text("Export") }
                 },
             )
         }
@@ -243,6 +245,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
             )
         }
+    }
+
+    if (showExportSheet) {
+        ExportSheet(onDismiss = { showExportSheet = false })
     }
 
     if (showCurrencyPicker) {

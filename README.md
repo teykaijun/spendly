@@ -12,6 +12,9 @@ Three things it does:
    notification shade, without opening the app).
 3. **Calendar heatmap** — see at a glance which days were expensive, tap any day
    to see exactly what you spent.
+4. **Home-screen widget** — this month's total without opening anything, plus a
+   shortcut straight to the keypad.
+5. **Range filter and CSV export** — any two dates, or one tap for this month.
 
 Your spending data never leaves the phone. The only network access in the app
 is the optional updater, and it only runs when you press the button — see
@@ -166,6 +169,33 @@ Each day is tinted by how much you spent, scaled against that month's busiest
 day. Tap any day to see its entries. Below the grid you get the month total, the
 average per active day, and a breakdown by category.
 
+### The home-screen widget
+
+Long-press the home screen → **Widgets** → Spendly → *Spending this month*.
+
+It shows the month's total in your default currency, the entry count and the
+average per day *elapsed* (on the 3rd it divides by 3, not by 30 — a month-long
+denominator early in the month tells you nothing). Spending in other currencies
+is noted on a second line rather than folded into the headline.
+
+Tapping it opens the app; tapping **+ Add spend** goes straight to the keypad.
+
+It redraws whenever an entry is added, edited, deleted or confirmed, and on the
+half hour as a fallback so the month rolls over on its own.
+
+### Filtering and exporting a date range
+
+Settings → **Export spending**, or the share icon on the calendar.
+
+Pick a preset — *This month*, *Last month*, *Last 30 days*, *This year*,
+*Everything* — or **Custom** for any two dates. The sheet then shows the totals
+and every matching entry **before** you export, so it doubles as "what did I
+spend between these dates" and the file is never a surprise.
+
+**Export CSV** writes one row per entry with the date, amount, currency,
+category, merchant, note and whether it was manual or automatic. Totals are
+listed per currency and never summed across them.
+
 ---
 
 ## How the notification reading actually works
@@ -195,6 +225,39 @@ On top of that:
 - **Chat, social and email apps start switched off** (in Settings, ready to be
   turned on) because people write "I paid RM50 at the mall" to each other. SMS
   apps stay **on**, since that's how many banks send alerts.
+
+### Currencies, verified
+
+`CurrencyCoverageTest` sweeps 40 realistic notifications and checks both the
+amount *and* the resolved ISO code for each. All 40 pass. Covered:
+
+| | |
+|---|---|
+| **Symbols** | `RM` `S$` `US$` `A$` `C$` `NZ$` `HK$` `NT$` `R$` `Rp` `€` `£` `₹` `₱` `฿` `₫` `₩` `₺` `₪` `₦` `₽` `₨` `CHF` `AED` `SAR` |
+| **ISO codes** | before *and* after the number — `MYR 88.00` and `88.00 MYR` both work |
+| **Separators** | `1,234.56` and `1.234,56` both read as the same amount |
+| **Zero-decimal** | JPY, KRW, VND, IDR display without cents |
+
+Three cases deserve singling out:
+
+- **`US$` is never read as `S$`.** The token list puts the longer prefixes first
+  precisely so a US dollar amount cannot become Singapore dollars.
+- **A bare `$` or `¥` resolves to your default currency** — `$` reads as SGD for
+  a Singapore default, AUD for an Australian one, and USD when your default is
+  neither. Because that is a guess, such detections score lower confidence than
+  an explicit symbol does.
+- **`kr` is deliberately not recognised.** It is Swedish, Norwegian and Danish at
+  once, and guessing wrong is worse than missing it. `SEK 199` works fine.
+
+A foreign card transaction keeps the currency it was charged in: `"Your card was
+charged THB 1,299.00 at BANGKOK HOTEL"` records 1,299.00 THB, not a converted
+figure. And when a notification quotes both — `"You paid $42.00 (RM198.00)"` —
+it takes the one nearest the spend verb, so the transaction amount wins over the
+parenthetical conversion.
+
+If a currency you use is missing, add it to `SYMBOL_TOKENS` in
+[`AmountDetector.kt`](app/src/main/java/com/spendly/parser/AmountDetector.kt)
+and add a line to the sweep.
 
 ### When it misses something
 
@@ -402,10 +465,12 @@ app/src/main/java/com/spendly/
 ├── parser/         Notification → spend. Pure Kotlin, no Android deps, tested
 ├── notify/         NotificationListenerService + the confirm-from-shade actions
 ├── update/         The in-app updater: feed, download, verification, install
+├── widget/         Home-screen widget (RemoteViews, not Compose)
 └── ui/
     ├── quickadd/   The two-tap entry screen
     ├── calendar/   Heatmap grid + day drill-down
     ├── inbox/      The confirm queue
+    ├── export/     Date-range filter and CSV export
     ├── settings/   Currency, capture controls, per-app switches, updates, CSV
     └── theme/      Material 3 theme and the heatmap colour ramp
 ```
@@ -450,9 +515,10 @@ Pinned to what was installed on the build machine, to keep a clean build cheap:
   the calendar is showing rather than getting a blended total from an invented
   rate.
 - **The UI has not been run on a device.** It compiles, passes lint with zero
-  findings, and 54 unit tests pass (parser + updater) — but there was no emulator
-  or phone available on the build machine, so layout and interaction haven't
-  been exercised. Expect to nudge some spacing.
+  findings, and 61 unit tests pass (parser, currencies, updater) — but there was
+  no emulator or phone available on the build machine, so layout and interaction
+  haven't been exercised. Expect to nudge some spacing. The widget and the
+  installer flow in particular are code I could only reason about, not run.
 - **Updates are not unattended** — Android always asks you to confirm. See
   [Updating the app](#updating-the-app).
 - Editing an existing entry isn't implemented yet — you delete and re-add.

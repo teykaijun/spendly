@@ -3,4 +3,10 @@
     <string name="app_name">Spendly</string>
     <string name="channel_pending_name">Detected spends</string>
     <string name="channel_pending_desc">Tap-to-confirm alerts for spends found in your notifications</string>
+    <string name="widget_name">Spending this month</string>
+    <string name="widget_description">How much you have spent this month, with a shortcut to add one.</string>
+    <string name="widget_this_month">THIS MONTH</string>
+    <string name="widget_placeholder">—</string>
+    <string name="widget_add_spend">+ Add spend</string>
+    <string name="empty_placeholder"></string>
 </resources>

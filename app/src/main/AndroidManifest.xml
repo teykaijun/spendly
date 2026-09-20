@@ -75,6 +75,26 @@
             android:name=".notify.PendingActionReceiver"
             android:exported="false" />
 
+        <!--
+          Home-screen widget. exported="false" is correct for widget providers
+          since Android 12; the system delivers APPWIDGET_UPDATE through its own
+          path, and our own refresh broadcast is same-UID and explicit.
+        -->
+        <receiver
+            android:name=".widget.MonthSpendWidget"
+            android:exported="false"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/month_spend_widget_info" />
+        </receiver>
+
         <!-- Receives PackageInstaller session results for the in-app updater. -->
         <receiver
             android:name=".update.InstallResultReceiver"

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,7 +36,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +53,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spendly.data.Money
 import com.spendly.ui.components.EntryRow
 import com.spendly.ui.components.StatTile
+import com.spendly.ui.export.ExportSheet
 import com.spendly.ui.theme.heatLevel
 import com.spendly.ui.theme.heatmapRamp
 import java.time.LocalDate
@@ -61,6 +65,7 @@ import java.util.Locale
 
 @Composable
 fun CalendarScreen(viewModel: CalendarViewModel = viewModel()) {
+    var showExportSheet by remember { mutableStateOf(false) }
     val month by viewModel.month.collectAsStateWithLifecycle()
     val days by viewModel.days.collectAsStateWithLifecycle()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -81,6 +86,7 @@ fun CalendarScreen(viewModel: CalendarViewModel = viewModel()) {
                 onPrev = viewModel::previousMonth,
                 onNext = viewModel::nextMonth,
                 onToday = viewModel::jumpToToday,
+                onExport = { showExportSheet = true },
             )
         }
 
@@ -164,6 +170,10 @@ fun CalendarScreen(viewModel: CalendarViewModel = viewModel()) {
             }
         }
     }
+
+    if (showExportSheet) {
+        ExportSheet(onDismiss = { showExportSheet = false })
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +198,7 @@ private fun MonthHeader(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onToday: () -> Unit,
+    onExport: () -> Unit,
 ) {
     Row(
         Modifier
@@ -208,10 +219,11 @@ private fun MonthHeader(
         IconButton(onClick = onNext) {
             Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next month")
         }
-        TextButton(onClick = onToday) {
-            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("Today")
+        IconButton(onClick = onToday) {
+            Icon(Icons.Default.DateRange, contentDescription = "Jump to today")
+        }
+        IconButton(onClick = onExport) {
+            Icon(Icons.Default.Share, contentDescription = "Export spending")
         }
     }
 }

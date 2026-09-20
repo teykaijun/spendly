@@ -36,6 +36,13 @@ interface EntryDao {
     @Query("SELECT * FROM entries ORDER BY epochDay ASC, createdAt ASC")
     suspend fun allEntriesOnce(): List<EntryWithCategory>
 
+    @Transaction
+    @Query(
+        "SELECT * FROM entries WHERE epochDay BETWEEN :from AND :to " +
+            "ORDER BY epochDay ASC, createdAt ASC",
+    )
+    suspend fun entriesBetweenOnce(from: Long, to: Long): List<EntryWithCategory>
+
     @Query("SELECT MIN(epochDay) FROM entries")
     suspend fun earliestDay(): Long?
 

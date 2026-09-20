@@ -1,8 +1,10 @@
 package com.spendly.data
 
+import android.app.Application
 import android.content.Context
 import com.spendly.parser.CategoryGuesser
 import com.spendly.parser.NotificationParser
+import com.spendly.widget.MonthSpendWidget
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.LocalDate
@@ -15,7 +17,16 @@ import java.time.ZoneId
 class SpendRepository private constructor(
     private val db: AppDatabase,
     private val prefs: Prefs,
+    /** Application, not a bare Context: this instance is a process-wide singleton. */
+    private val app: Application,
 ) {
+
+    /**
+     * Anything that changes a total has to poke the home-screen widget, which
+     * otherwise only refreshes on its own half-hourly schedule. Cheap and a
+     * no-op when no widget is placed.
+     */
+    private fun notifyWidget() = MonthSpendWidget.refresh(app)
 
     val entryDao: EntryDao get() = db.entryDao()
     val categoryDao: CategoryDao get() = db.categoryDao()
@@ -48,12 +59,19 @@ class SpendRepository private constructor(
             ),
         )
         db.categoryDao().bumpUsage(categoryId)
+        notifyWidget()
         return id
     }
 
-    suspend fun updateEntry(entry: SpendEntry) = db.entryDao().update(entry)
+    suspend fun updateEntry(entry: SpendEntry) {
+        db.entryDao().update(entry)
+        notifyWidget()
+    }
 
-    suspend fun deleteEntry(id: Long) = db.entryDao().deleteById(id)
+    suspend fun deleteEntry(id: Long) {
+        db.entryDao().deleteById(id)
+        notifyWidget()
+    }
 
     suspend fun entryById(id: Long) = db.entryDao().byId(id)
 
@@ -150,6 +168,7 @@ class SpendRepository private constructor(
             )
             db.categoryDao().bumpUsage(categoryId)
             db.watchedAppDao().bumpDetected(packageName)
+            notifyWidget()
             return Ingest.Saved(entryId, parsed.amountMinor, parsed.currency)
         }
 
@@ -239,6 +258,7 @@ class SpendRepository private constructor(
         )
         db.categoryDao().bumpUsage(finalCategory)
         db.pendingDao().deleteById(pendingId)
+        notifyWidget()
         return entryId
     }
 
@@ -271,8 +291,26 @@ class SpendRepository private constructor(
     // Export
     // ------------------------------------------------------------------
 
-    suspend fun exportCsv(): String {
-        val rows = db.entryDao().allEntriesOnce()
+    /**
+     * Entries in a date range, as a one-shot read for the range filter and export.
+     * Null bounds mean "no limit", so the same call serves "everything".
+     */
+    suspend fun entriesInRange(from: LocalDate?, to: LocalDate?): List<EntryWithCategory> =
+        db.entryDao().entriesBetweenOnce(
+            from?.toEpochDay() ?: Long.MIN_VALUE,
+            to?.toEpochDay() ?: Long.MAX_VALUE,
+        )
+
+    /**
+     * CSV for a date range, or for everything when both bounds are null.
+     *
+     * Amounts are written unformatted with a plain dot decimal so a spreadsheet
+     * reads them as numbers, and the currency stays in its own column — summing
+     * across currencies is the reader's problem to think about, not something
+     * this file should quietly paper over.
+     */
+    suspend fun exportCsv(from: LocalDate? = null, to: LocalDate? = null): String {
+        val rows = entriesInRange(from, to)
         return buildString {
             appendLine("date,amount,currency,category,merchant,note,source")
             rows.forEach { row ->
@@ -307,6 +345,7 @@ class SpendRepository private constructor(
             instance ?: SpendRepository(
                 AppDatabase.get(context),
                 Prefs.get(context),
+                context.applicationContext as Application,
             ).also { instance = it }
         }
 
