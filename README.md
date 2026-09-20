@@ -1,5 +1,7 @@
 # Spendly
 
+[![Latest release](https://img.shields.io/github/v/release/teykaijun/spendly?label=download&color=10A37F)](https://github.com/teykaijun/spendly/releases/latest)
+
 An Android spending tracker built around one idea: **if logging a spend takes
 more than two taps, you won't do it.**
 
@@ -26,20 +28,27 @@ is the optional updater, and it only runs when you press the button — see
 
 ## Getting it onto your phone
 
-### Option A — just install the APK (fastest)
+### Option A — download the release (fastest)
 
-A working debug APK is already built at:
+**[Download the latest APK](https://github.com/teykaijun/spendly/releases/latest)**
+on the phone itself, tap it, and allow "install from unknown sources" when
+prompted. That's it.
+
+That build updates itself from then on: Settings → Updates, with the source set
+to `teykaijun/spendly`.
+
+> Install the **release** APK, not a local debug build. Debug builds carry a
+> `.debug` applicationId, which Android treats as a separate app, so they can
+> never update themselves — and they are signed with a per-machine throwaway key
+> rather than the release key.
+
+Every release is signed with the same key. If you ever want to check a download
+is genuinely the same build:
 
 ```
-app/build/outputs/apk/debug/app-debug.apk
+SHA-256: cb:9e:2c:08:4f:76:46:97:15:86:52:e2:01:9d:0f:16:
+         a6:1c:11:de:45:bc:19:0c:eb:df:e4:57:d3:e4:85:ac
 ```
-
-Copy it to your phone (USB, Google Drive, Telegram to yourself — anything), tap
-it, and allow "install from unknown sources" when prompted. That's it.
-
-> Use the **debug** APK for your first install. There's a release build too
-> (`app/build/outputs/apk/release/app-release.apk`, ~7.5 MB vs ~21 MB) but it's
-> passed through code shrinking, which hasn't been verified on a real device.
 
 ### Option B — build it yourself
 
