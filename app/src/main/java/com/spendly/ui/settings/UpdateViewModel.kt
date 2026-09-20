@@ -3,6 +3,7 @@ package com.spendly.ui.settings
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.spendly.BuildConfig
 import com.spendly.data.Prefs
 import com.spendly.update.ApkInstaller
 import com.spendly.update.InstallEvent
@@ -33,6 +34,14 @@ sealed interface UpdateUiState {
     data object NeedsInstallPermission : UpdateUiState
     data object NotConfigured : UpdateUiState
     data class Failed(val message: String) : UpdateUiState
+
+    /**
+     * A debug build can never install a release APK: the debug variant carries
+     * the `.debug` applicationId suffix, so Android treats the two as different
+     * apps entirely. Worth saying outright rather than letting the signature
+     * check reject it with a package-name mismatch nobody can act on.
+     */
+    data object DebugBuild : UpdateUiState
 }
 
 class UpdateViewModel(app: Application) : AndroidViewModel(app) {
@@ -84,7 +93,14 @@ class UpdateViewModel(app: Application) : AndroidViewModel(app) {
     fun isSourceValid(value: String): Boolean =
         value.isBlank() || UpdateSource.parse(value) != null
 
+    /** Release builds only — see [UpdateUiState.DebugBuild]. */
+    val canUpdate: Boolean = !BuildConfig.DEBUG
+
     fun check() {
+        if (!canUpdate) {
+            _state.value = UpdateUiState.DebugBuild
+            return
+        }
         if (_state.value is UpdateUiState.Checking) return
         _state.value = UpdateUiState.Checking
         viewModelScope.launch {
@@ -99,6 +115,7 @@ class UpdateViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Called on app open, only when the user opted in and a source is set. */
     fun checkSilentlyIfEnabled() {
+        if (!canUpdate) return
         if (!prefs.checkUpdatesOnOpen.value) return
         if (prefs.updateSource.value.isBlank()) return
         if (_state.value != UpdateUiState.Idle) return

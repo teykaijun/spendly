@@ -58,7 +58,8 @@ fun UpdateSection(viewModel: UpdateViewModel = viewModel()) {
     Column(Modifier.padding(horizontal = 20.dp)) {
 
         Text(
-            text = "Version ${viewModel.currentVersionName} (build ${viewModel.currentVersionCode})",
+            text = "Version ${viewModel.currentVersionName} (build ${viewModel.currentVersionCode})" +
+                if (viewModel.canUpdate) "" else " · debug",
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(Modifier.height(10.dp))
@@ -230,6 +231,12 @@ private fun StatusCard(state: UpdateUiState, viewModel: UpdateViewModel) {
             onAction = viewModel::openInstallPermissionSettings,
         )
 
+        UpdateUiState.DebugBuild -> WarningCard(
+            text = "This is a debug build (com.spendly.debug). Android treats it as a " +
+                "separate app from a release build, so it cannot update itself. " +
+                "Install a release APK once by hand — that copy updates from then on.",
+        )
+
         UpdateUiState.NotConfigured -> WarningCard(
             text = "Set an update source above first — the repository or feed that " +
                 "publishes new builds.",
@@ -273,7 +280,7 @@ private fun PrimaryAction(
 
         else -> Button(
             onClick = viewModel::check,
-            enabled = sourceSet && state != UpdateUiState.Checking,
+            enabled = viewModel.canUpdate && sourceSet && state != UpdateUiState.Checking,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
