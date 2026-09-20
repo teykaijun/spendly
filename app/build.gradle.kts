@@ -22,6 +22,30 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
+/**
+ * The single source of truth for the app's version.
+ *
+ * versionCode is derived from the name rather than maintained separately,
+ * because the updater reads the version out of the GitHub tag and computes the
+ * code the same way. Keeping two numbers in sync by hand guarantees they drift,
+ * and when they do the app offers an update it then refuses to install.
+ *
+ * Two digits per component, so every part must stay below 100. "1.10" therefore
+ * outranks "1.9", which a plain string comparison would get backwards.
+ */
+val appVersionName = "1.0"
+
+val appVersionCode = appVersionName.split(".").let { parts ->
+    val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
+    val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
+    val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
+    require(minor < 100 && patch < 100) {
+        "versionName '$appVersionName' has a component of 100 or more, which the " +
+            "updater's two-digits-per-part scheme cannot represent."
+    }
+    major * 10_000 + minor * 100 + patch
+}
+
 android {
     namespace = "com.spendly"
     compileSdk = 37
@@ -30,8 +54,8 @@ android {
         applicationId = "com.spendly"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

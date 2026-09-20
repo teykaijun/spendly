@@ -91,6 +91,22 @@ Publishing it would lock every future release to a per-machine throwaway
 keystore. Fix keystore.properties and rebuild."
 fi
 
+# The updater derives a versionCode from the tag. If the APK disagrees, the app
+# offers an update it will then refuse to install, so the two are checked here.
+AAPT="$(find "${ANDROID_HOME:-$LOCALAPPDATA/Android/Sdk}/build-tools" \
+  -maxdepth 2 -name 'aapt2.exe' -o -maxdepth 2 -name 'aapt2' 2>/dev/null \
+  | sort -r | head -1)"
+if [[ -n "$AAPT" ]]; then
+  APK_CODE="$("$AAPT" dump badging "$APK" 2>/dev/null \
+    | grep -o "versionCode='[0-9]*'" | head -1 | grep -o '[0-9]*')"
+  EXPECTED_CODE="$(awk -F. '{printf "%d", $1*10000 + $2*100 + $3}' <<< "$VERSION")"
+  if [[ -n "$APK_CODE" && "$APK_CODE" != "$EXPECTED_CODE" ]]; then
+    fail "versionCode mismatch: the APK says $APK_CODE but tag $TAG implies $EXPECTED_CODE.
+The app would offer this update and then refuse to install it."
+  fi
+  step "versionCode $APK_CODE matches tag $TAG"
+fi
+
 SIZE_MB=$(( $(wc -c < "$APK") / 1024 / 1024 ))
 step "Signed release APK ready (${SIZE_MB} MB)"
 
@@ -124,7 +140,11 @@ git tag -a "$TAG" -m "Spendly $VERSION"
 git push origin "$TAG"
 
 step "Publishing GitHub release"
-gh release create "$TAG" "$APK#spendly-${VERSION}.apk" \
+# gh's "file#label" sets only the display label, so the asset would still
+# download as app-release.apk. Copy it to the name people should receive.
+UPLOAD="$(dirname "$APK")/spendly-${VERSION}.apk"
+cp "$APK" "$UPLOAD"
+gh release create "$TAG" "$UPLOAD" \
   --title "Spendly $VERSION" \
   --notes-file "$NOTES_FILE"
 
