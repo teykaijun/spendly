@@ -53,7 +53,8 @@ if [[ -n "$(git status --porcelain)" ]]; then
   fail "Working tree is dirty. Commit or stash before releasing."
 fi
 
-VERSION="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
+VERSION="$(grep -oE 'val appVersionName = "[^"]+"' app/build.gradle.kts \
+  | head -1 | cut -d'"' -f2 || true)"
 [[ -n "$VERSION" ]] || fail "Could not read versionName from app/build.gradle.kts"
 TAG="v${VERSION}"
 step "Releasing $TAG"
@@ -98,7 +99,7 @@ AAPT="$(find "${ANDROID_HOME:-$LOCALAPPDATA/Android/Sdk}/build-tools" \
   | sort -r | head -1)"
 if [[ -n "$AAPT" ]]; then
   APK_CODE="$("$AAPT" dump badging "$APK" 2>/dev/null \
-    | grep -o "versionCode='[0-9]*'" | head -1 | grep -o '[0-9]*')"
+    | grep -o "versionCode='[0-9]*'" | head -1 | grep -o '[0-9]*' || true)"
   EXPECTED_CODE="$(awk -F. '{printf "%d", $1*10000 + $2*100 + $3}' <<< "$VERSION")"
   if [[ -n "$APK_CODE" && "$APK_CODE" != "$EXPECTED_CODE" ]]; then
     fail "versionCode mismatch: the APK says $APK_CODE but tag $TAG implies $EXPECTED_CODE.
