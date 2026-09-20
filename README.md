@@ -348,12 +348,25 @@ signing — they just can't be updated from elsewhere.
 
 ### Publishing a new version
 
-1. Bump `versionCode` and `versionName` in `app/build.gradle.kts`.
-2. `./gradlew assembleRelease`
-3. Attach `app/build/outputs/apk/release/app-release.apk` to a GitHub release
-   tagged `v<versionName>`.
+```bash
+./scripts/release.sh --dry-run   # build and verify, publish nothing
+./scripts/release.sh             # tag, build, verify, publish
+```
 
-The installed app will find it on the next check.
+The script runs the tests and lint, builds the release APK, **refuses to
+continue if it is signed with the Android debug key**, tags the commit, and
+publishes a GitHub release whose notes come from the matching `CHANGELOG.md`
+section — so what the app shows you in the update card is the same text the
+repository documents.
+
+For a new version, bump `versionCode` and `versionName` in
+`app/build.gradle.kts`, add a `## vX.Y` section to `CHANGELOG.md`, commit, then
+run the script.
+
+> **Debug builds cannot update themselves.** The debug variant is
+> `com.spendly.debug`, which Android treats as a different app from the release
+> `com.spendly`. Install a release APK once by hand; that copy updates from then
+> on. The app says so in Settings → Updates rather than failing confusingly.
 
 ### What is checked before anything installs
 
