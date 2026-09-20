@@ -80,6 +80,9 @@ android {
     }
 
     lint {
+        // Library-scoped suppressions live in app/lint.xml so they cannot
+        // accidentally silence the same issue in our own code.
+        lintConfig = file("lint.xml")
         // Adaptive icons genuinely need the -v26 qualifier; AAPT rejects the
         // plain "anydpi" folder that ObsoleteSdkInt suggests merging into.
         disable += "ObsoleteSdkInt"
@@ -127,6 +130,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.core)
     debugImplementation(libs.androidx.ui.tooling)
+
+    implementation(libs.pdfbox.android)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

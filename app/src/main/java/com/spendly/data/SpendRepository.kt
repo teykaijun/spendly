@@ -63,6 +63,36 @@ class SpendRepository private constructor(
         return id
     }
 
+    /**
+     * An entry read out of a PDF statement. Separate from [addManualEntry] so
+     * imports carry their own source and dedupe key — re-importing an
+     * overlapping statement must not silently double every row.
+     */
+    suspend fun addImportedEntry(
+        amountMinor: Long,
+        currency: String,
+        categoryId: Long,
+        merchant: String?,
+        date: LocalDate,
+        dedupeKey: String?,
+    ): Long {
+        val id = db.entryDao().insert(
+            SpendEntry(
+                amountMinor = amountMinor,
+                currency = currency,
+                categoryId = categoryId,
+                merchant = merchant?.takeIf { it.isNotBlank() },
+                note = null,
+                epochDay = date.toEpochDay(),
+                source = Source.STATEMENT,
+                dedupeKey = dedupeKey,
+            ),
+        )
+        db.categoryDao().bumpUsage(categoryId)
+        notifyWidget()
+        return id
+    }
+
     suspend fun updateEntry(entry: SpendEntry) {
         db.entryDao().update(entry)
         notifyWidget()

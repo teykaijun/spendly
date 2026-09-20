@@ -29,6 +29,18 @@ hand and later versions arrive through Settings → Updates.
   banks text you.
 - Sensitivity slider controls how certain a detection must be before it counts.
 
+### Statements and reloads
+
+- Import a bank or e-wallet **PDF statement**, including password-protected
+  ones. Every row is shown for review before anything is written, and rows from
+  an already-imported period start unticked so overlapping statements do not
+  double up.
+- **Reloads and self-transfers are never counted as spending** — in
+  notifications, in statement imports, and therefore in every total. Moving
+  money into a wallet is not a purchase, and counting it would double-count
+  whatever you buy with that balance later. Paying a person by transfer still
+  counts.
+
 ### Currencies
 
 - 28 currencies, symbols and ISO codes, before or after the number, in both

@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spendly.R
 import com.spendly.data.Money
 import com.spendly.ui.export.ExportSheet
+import com.spendly.ui.importing.ImportSheet
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
@@ -62,6 +63,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
 
     var showCurrencyPicker by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
+    var showImportSheet by remember { mutableStateOf(false) }
 
     // Read through stringResource, not context.getString: the latter is not
     // configuration-aware and would hand back stale values after a config change.
@@ -231,6 +233,18 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
 
         item {
             SettingRow(
+                title = "Import a PDF statement",
+                subtitle = "Read spending out of a bank or e-wallet statement. Every row " +
+                    "is shown for review first, and reloads are left out.",
+                onClick = { showImportSheet = true },
+                trailing = {
+                    OutlinedButton(onClick = { showImportSheet = true }) { Text("Import") }
+                },
+            )
+        }
+
+        item {
+            SettingRow(
                 title = "Export spending",
                 subtitle = "Pick a date range — this month, last month, or any two dates — " +
                     "see what's in it, then save or share it as a spreadsheet.",
@@ -279,6 +293,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
 
     if (showExportSheet) {
         ExportSheet(onDismiss = { showExportSheet = false })
+    }
+
+    if (showImportSheet) {
+        ImportSheet(onDismiss = { showImportSheet = false })
     }
 
     if (showCurrencyPicker) {

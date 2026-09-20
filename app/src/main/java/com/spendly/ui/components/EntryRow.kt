@@ -73,9 +73,15 @@ fun EntryRow(
                     if (isNotEmpty()) append(" · ")
                     append(entry.note)
                 }
-                if (entry.source == Source.NOTIFICATION) {
-                    if (isNotEmpty()) append(" · ")
-                    append("auto")
+                when (entry.source) {
+                    Source.NOTIFICATION -> {
+                        if (isNotEmpty()) append(" · ")
+                        append("auto")
+                    }
+                    Source.STATEMENT -> {
+                        if (isNotEmpty()) append(" · ")
+                        append("statement")
+                    }
                 }
             }
             if (subtitle.isNotEmpty()) {

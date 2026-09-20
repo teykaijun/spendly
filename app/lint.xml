@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!--
+      BouncyCastle ships an X509TrustManager with empty check methods. It arrives
+      transitively through PDFBox, which needs it to open password-protected PDFs,
+      and nothing in Spendly installs or uses that trust manager: the only network
+      code is UpdateClient, which uses HttpURLConnection with the platform trust
+      store and a network security config that forbids cleartext entirely.
+
+      Scoped to those jars on purpose. If this app ever grows its own permissive
+      trust manager, lint must still fail on it.
+    -->
+    <issue id="TrustAllX509TrustManager">
+        <ignore path="**/bcpkix-*.jar" />
+        <ignore path="**/bcprov-*.jar" />
+        <ignore path="**/bcutil-*.jar" />
+    </issue>
+</lint>

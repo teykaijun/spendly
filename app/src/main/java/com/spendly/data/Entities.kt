@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 object Source {
     const val MANUAL = "MANUAL"
     const val NOTIFICATION = "NOTIFICATION"
+    const val STATEMENT = "STATEMENT"
 }
 
 /**

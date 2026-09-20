@@ -127,6 +127,43 @@ class NotificationParserTest {
         assertNull(parse("News", "The RM50 note is being redesigned"))
     }
 
+    // ---------- reloads are not spending ----------
+
+    @Test
+    fun `wallet reloads are not recorded as spending`() {
+        // Counting the reload AND the later wallet purchase double-counts, so
+        // the money is recorded once, when it actually leaves the wallet.
+        assertNull(parse("TNG eWallet", "Reload of RM50.00 successful"))
+        assertNull(parse("Maybank2u", "You paid RM100.00 to reload your Touch n Go eWallet"))
+        assertNull(parse("GrabPay", "Top up of RM80.00 successful"))
+        assertNull(parse("Boost", "RM30.00 has been debited for wallet top-up"))
+        assertNull(parse("ShopeePay", "Add Money RM200.00 completed"))
+        assertNull(parse("Bank", "Cash in RM150.00 to your wallet"))
+    }
+
+    @Test
+    fun `self transfers are not spending`() {
+        assertNull(parse("Bank", "Transfer to own account RM500.00 successful"))
+        assertNull(parse("Bank", "Internal transfer of RM200.00 completed"))
+        assertNull(parse("Card", "Balance transfer of RM1,000.00 processed"))
+    }
+
+    @Test
+    fun `paying someone by transfer is still spending`() {
+        // Only self-transfers are excluded; a DuitNow to a person is a real spend.
+        val r = parse("Maybank2u", "DuitNow payment of RM30.00 to Ali Bin Abu successful")
+        assertNotNull(r)
+        assertEquals(3000L, r!!.amountMinor)
+    }
+
+    @Test
+    fun `a spend at a merchant whose name contains a reload word still counts`() {
+        // Word boundaries stop "preloaded" from reading as "reload".
+        val r = parse("Card", "You paid RM25.00 at PRELOADED CARD SHOP")
+        assertNotNull(r)
+        assertEquals(2500L, r!!.amountMinor)
+    }
+
     // ---------- amount selection ----------
 
     @Test

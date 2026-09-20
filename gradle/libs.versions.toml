@@ -12,6 +12,7 @@ composeBom = "2026.09.00"
 room = "2.8.5"
 junit = "4.13.2"
 orgJson = "20260814"
+pdfboxAndroid = "2.0.27.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -37,6 +38,9 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 # android.jar is stubbed in unit tests, so org.json returns nulls there.
 # This puts the real implementation on the unit-test classpath only.
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+# Android has no built-in way to read text out of a PDF — PdfRenderer only
+# rasterises pages. This is the standard Android port of Apache PDFBox.
+pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

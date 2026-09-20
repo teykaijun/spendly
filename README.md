@@ -15,6 +15,8 @@ Three things it does:
 4. **Home-screen widget** — this month's total without opening anything, plus a
    shortcut straight to the keypad.
 5. **Range filter and CSV export** — any two dates, or one tap for this month.
+6. **PDF statement import** — read a month of spending out of a bank or e-wallet
+   statement, with every row shown for review first.
 
 Your spending data never leaves the phone. The only network access in the app
 is the optional updater, and it only runs when you press the button — see
@@ -36,7 +38,7 @@ Copy it to your phone (USB, Google Drive, Telegram to yourself — anything), ta
 it, and allow "install from unknown sources" when prompted. That's it.
 
 > Use the **debug** APK for your first install. There's a release build too
-> (`app/build/outputs/apk/release/app-release.apk`, ~1.6 MB vs ~12 MB) but it's
+> (`app/build/outputs/apk/release/app-release.apk`, ~7.5 MB vs ~21 MB) but it's
 > passed through code shrinking, which hasn't been verified on a real device.
 
 ### Option B — build it yourself
@@ -163,6 +165,60 @@ browser, price drop, starting at, as low as, your cart, back in stock*.
 Its blind spot is emails that only put the amount in the body, since Gmail
 truncates the snippet. Those are missed, not misread.
 
+### Importing a PDF statement
+
+Settings → **Import a PDF statement**. Pick a bank or e-wallet PDF and Spendly
+reads it on the phone — the file is never uploaded.
+
+Password-protected statements are supported, which most bank PDFs are. The
+password is used to open the file and is not stored.
+
+**Every row is shown for review before anything is written.** Statement layouts
+are not standardised in any useful sense — every bank invents its own column
+order, date format and debit marker — so the parse is frankly heuristic and the
+review step is not optional. Untick anything wrong, change a category inline,
+then import.
+
+Rows already imported from an overlapping statement are detected and start
+**unticked**, so re-importing an overlapping period does not double everything.
+
+What it handles:
+
+| | |
+|---|---|
+| **Layouts** | `date · description · amount · balance` (the rightmost amount is read as the running balance, not the transaction), and signed e-wallet rows like `-25.50` / `+50.00` |
+| **Dates** | `01/02/2026`, `2026-02-01`, `01-02-2026`, `01 Feb 2026`, and year-less `01 FEB` resolved against the statement's own year |
+| **Direction** | explicit `CR` / `DR` markers and `+` / `-` signs win; otherwise inferred from words like *salary*, *refund*, *purchase*, *fee* |
+| **Noise** | opening/closing balance, page footers, account numbers and summary lines are skipped |
+
+Its limits, plainly: a **scanned** statement has no text layer and cannot be
+read — Spendly reads text, not images, and says so rather than importing
+nothing silently. Layouts with separate debit and credit columns are the most
+likely to need a correction in review.
+
+### Reloads are not spending
+
+Topping up an e-wallet moves money between your own accounts. It is not a
+purchase, and counting it double-counts every ringgit — once when it enters the
+wallet, and again when you actually buy something with it.
+
+So **reloads and self-transfers are excluded everywhere**: notifications,
+statement imports, and therefore every total, the heatmap and the widget. The
+same [`TransferDetector`](app/src/main/java/com/spendly/parser/TransferDetector.kt)
+decides in both places, so the two can't drift apart.
+
+Excluded: *reload, top up / top-up / topup, add money, add funds, cash in,
+load wallet, transfer to own account, internal transfer, balance transfer.*
+
+**Still counted**, because they are genuinely spending: paying a person by bank
+transfer, DuitNow to someone, and any merchant whose name happens to contain one
+of those words — matching is word-boundary aware, so `PRELOADED CARD SHOP` is
+not a reload.
+
+In a statement import, excluded rows are listed under *"Show N left out"* with
+the reason, so you can see what was dropped instead of wondering why the total
+looks short.
+
 ### The calendar
 
 Each day is tinted by how much you spent, scaled against that month's busiest
@@ -277,7 +333,7 @@ fun `handles my bank`() {
 ```
 
 Then add the missing keyword to `SPEND_KEYWORDS` or `REJECT_KEYWORDS` in
-`NotificationParser.kt`. There are 36 parser tests covering the cases above, so you'll
+`NotificationParser.kt`. There are 40 parser tests covering the cases above, so you'll
 know immediately if a change breaks something else.
 
 You can also move the **Sensitivity** slider in Settings — it's the minimum
@@ -479,11 +535,13 @@ app/src/main/java/com/spendly/
 ├── notify/         NotificationListenerService + the confirm-from-shade actions
 ├── update/         The in-app updater: feed, download, verification, install
 ├── widget/         Home-screen widget (RemoteViews, not Compose)
+├── pdf/            Statement text extraction and line parsing
 └── ui/
     ├── quickadd/   The two-tap entry screen
     ├── calendar/   Heatmap grid + day drill-down
     ├── inbox/      The confirm queue
     ├── export/     Date-range filter and CSV export
+    ├── importing/  PDF statement import and review
     ├── settings/   Currency, capture controls, per-app switches, updates, CSV
     └── theme/      Material 3 theme and the heatmap colour ramp
 ```
@@ -528,7 +586,7 @@ Pinned to what was installed on the build machine, to keep a clean build cheap:
   the calendar is showing rather than getting a blended total from an invented
   rate.
 - **The UI has not been run on a device.** It compiles, passes lint with zero
-  findings, and 61 unit tests pass (parser, currencies, updater) — but there was
+  findings, and 84 unit tests pass (parser, currencies, statements, updater) — but there was
   no emulator or phone available on the build machine, so layout and interaction
   haven't been exercised. Expect to nudge some spacing. The widget and the
   installer flow in particular are code I could only reason about, not run.

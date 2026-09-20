@@ -121,14 +121,19 @@ object NotificationParser {
         // 1. Hard rejects first — cheapest way to drop the bulk of notifications.
         REJECT_KEYWORDS.firstOrNull { containsPhrase(lower, it) }?.let { return null }
 
-        // 2. Must look like money leaving the account.
+        // 2. Reloads and self-transfers move money between your own accounts.
+        //    Counting them would double-count everything bought from the wallet
+        //    afterwards, so they are never spending.
+        if (TransferDetector.isTransfer(blob)) return null
+
+        // 3. Must look like money leaving the account.
         val keyword = SPEND_KEYWORDS.firstOrNull { containsPhrase(lower, it) } ?: return null
 
-        // 3. Must contain a currency amount.
+        // 4. Must contain a currency amount.
         val hits = AmountDetector.findAll(blob, baseCurrency)
         if (hits.isEmpty()) return null
 
-        // 4. When several amounts appear ("RM25 spent, balance RM1,234"), take the
+        // 5. When several amounts appear ("RM25 spent, balance RM1,234"), take the
         //    one physically closest to the phrase that marked this as a spend.
         val keywordIndex = lower.indexOf(keyword)
         val chosen = hits.minBy { hit ->
