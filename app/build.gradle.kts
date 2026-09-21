@@ -33,7 +33,7 @@ val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
  * Two digits per component, so every part must stay below 100. "1.10" therefore
  * outranks "1.9", which a plain string comparison would get backwards.
  */
-val appVersionName = "1.0"
+val appVersionName = "1.1"
 
 val appVersionCode = appVersionName.split(".").let { parts ->
     val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
