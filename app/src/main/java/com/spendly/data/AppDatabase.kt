@@ -43,7 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
          * Done in raw SQL so it happens inside the same transaction as the schema
          * creation — the app can never come up with an empty category list.
          */
-        private object SeedCallback : RoomDatabase.Callback() {
+        internal object SeedCallback : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 DefaultCategories.seed.forEachIndexed { index, c ->
                     db.execSQL(

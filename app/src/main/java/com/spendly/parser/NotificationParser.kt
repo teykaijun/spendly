@@ -133,10 +133,13 @@ object NotificationParser {
         val hits = AmountDetector.findAll(blob, baseCurrency)
         if (hits.isEmpty()) return null
 
-        // 5. When several amounts appear ("RM25 spent, balance RM1,234"), take the
-        //    one physically closest to the phrase that marked this as a spend.
+        // 5. A running balance is not a competing transaction amount — it is in
+        //    almost every bank alert. Set balance-labelled amounts aside, then
+        //    take whichever remaining amount sits closest to the spend phrase.
+        val balance = hits.filter { isBalanceAmount(blob, it, hits) }
+        val candidates = (hits - balance.toSet()).ifEmpty { hits }
         val keywordIndex = lower.indexOf(keyword)
-        val chosen = hits.minBy { hit ->
+        val chosen = candidates.minBy { hit ->
             val mid = (hit.start + hit.end) / 2
             kotlin.math.abs(mid - keywordIndex)
         }
@@ -147,7 +150,10 @@ object NotificationParser {
         if (merchant != null) confidence += 15
         if (!chosen.currencyWasAmbiguous) confidence += 10
         if (looksFinancial(packageName)) confidence += 15
-        if (hits.size > 1) confidence -= 15
+        // Only genuine ambiguity costs confidence. Penalising the balance line
+        // used to push ordinary bank alerts below the default threshold, so they
+        // were dropped before ever reaching the Inbox.
+        if (candidates.size > 1) confidence -= 15
         if (titlePart.isNotEmpty() && textPart.isNotEmpty()) confidence += 5
         confidence = confidence.coerceIn(0, 100)
 
@@ -261,6 +267,45 @@ object NotificationParser {
             }
         }
         return name
+    }
+
+    /**
+     * Words that label the account balance rather than the transaction.
+     * "baki" and "saldo" are the Malay and Indonesian terms banks in the region
+     * actually print. Word-bounded so "global" does not read as "bal".
+     */
+    private val BALANCE_LABEL = Regex(
+        """\b(balance|bal|avail|available|baki|saldo|remaining)\b""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Abbreviations that end in a full stop without ending the sentence. */
+    private val ABBREVIATIONS = setOf("bal", "avail", "acct", "ac", "no", "ref", "amt", "txn", "approx")
+
+    private val SENTENCE_BREAK = Regex("""[.!?;]\s|\n""")
+
+    /**
+     * True when the words introducing [hit] — within its own clause — say it is
+     * the account balance.
+     *
+     * The clause matters. A plain look-back window reaches across sentences, so
+     * in "Balance updated. RM25.50 spent" the transaction would be tagged as a
+     * balance. The look-back therefore stops at the previous amount and at the
+     * last real sentence break, where "bal." and "avail." do not count as one.
+     */
+    private fun isBalanceAmount(blob: String, hit: AmountDetector.Hit, all: List<AmountDetector.Hit>): Boolean {
+        val previousEnd = all.filter { it.end <= hit.start }.maxOfOrNull { it.end } ?: 0
+        val from = maxOf(previousEnd, hit.start - 40).coerceAtLeast(0)
+        val window = blob.substring(from, hit.start)
+
+        var clauseStart = 0
+        for (m in SENTENCE_BREAK.findAll(window)) {
+            val wordBefore = window.substring(0, m.range.first)
+                .takeLastWhile { it.isLetter() }
+                .lowercase()
+            if (wordBefore !in ABBREVIATIONS) clauseStart = m.range.last + 1
+        }
+        return BALANCE_LABEL.containsMatchIn(window.substring(clauseStart))
     }
 
     private fun isAllLowerCaseWord(word: String): Boolean =

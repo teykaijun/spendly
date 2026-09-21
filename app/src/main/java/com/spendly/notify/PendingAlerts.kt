@@ -113,6 +113,14 @@ object PendingAlerts {
     }
 
     /**
+     * Whether Android will actually show our alerts. Public because the UI has
+     * to ask for it: the permission is runtime-granted on Android 13+, and until
+     * this was checked on launch, a default-on alert setting meant the request
+     * was simply never made — so detections queued silently with no prompt.
+     */
+    fun hasPostPermission(context: Context): Boolean = canPost(context)
+
+    /**
      * POST_NOTIFICATIONS only exists from API 33; below that, posting is always
      * allowed and the constant must not be referenced at runtime.
      */

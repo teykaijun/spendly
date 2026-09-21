@@ -76,9 +76,21 @@
             </intent-filter>
         </service>
 
+        <!--
+          Confirm / Not a spend / Undo buttons on Spendly's own notifications.
+          The intent-filter declares exactly the actions we send, so an explicit
+          intent always matches its target under Android 15's stricter intent
+          matching. exported="false" keeps it private regardless.
+        -->
         <receiver
             android:name=".notify.PendingActionReceiver"
-            android:exported="false" />
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.spendly.action.CONFIRM" />
+                <action android:name="com.spendly.action.DISMISS" />
+                <action android:name="com.spendly.action.UNDO_SAVE" />
+            </intent-filter>
+        </receiver>
 
         <!--
           Home-screen widget. exported="false" is correct for widget providers

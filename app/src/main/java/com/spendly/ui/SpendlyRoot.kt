@@ -69,6 +69,8 @@ fun SpendlyRoot(
     val updateViewModel: UpdateViewModel = viewModel()
     LaunchedEffect(Unit) { updateViewModel.checkSilentlyIfEnabled() }
 
+    AlertPermissionRequest()
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {

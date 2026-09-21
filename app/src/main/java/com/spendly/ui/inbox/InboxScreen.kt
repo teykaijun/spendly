@@ -37,6 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.spendly.data.CaptureLog
 import com.spendly.data.Category
 import com.spendly.data.Money
 import com.spendly.data.PendingEntry
@@ -71,6 +75,10 @@ fun InboxScreen(
     val expandedId by viewModel.expandedId.collectAsStateWithLifecycle()
     val listenerEnabled by viewModel.listenerEnabled.collectAsStateWithLifecycle()
     val paused by viewModel.capturePaused.collectAsStateWithLifecycle()
+    val alertsAllowed by viewModel.alertsAllowed.collectAsStateWithLifecycle()
+    val alertsWanted by viewModel.alertsWanted.collectAsStateWithLifecycle()
+    val captureLog by viewModel.captureLog.collectAsStateWithLifecycle()
+    var showLog by rememberSaveable { mutableStateOf(false) }
 
     // Permission is granted in system settings, which gives no callback — so
     // re-check every time this screen comes back to the foreground.
@@ -90,6 +98,10 @@ fun InboxScreen(
             item { EnableAccessCard() }
         } else if (paused) {
             item { PausedCard(onResume = { viewModel.setPaused(false) }) }
+        } else if (alertsWanted && !alertsAllowed) {
+            // The exact state that made detections look unsaved: capture works,
+            // but the confirm prompt can never appear.
+            item { AlertsBlockedCard() }
         }
 
         if (pending.isNotEmpty()) {
@@ -127,6 +139,34 @@ fun InboxScreen(
 
         if (pending.isEmpty() && listenerEnabled) {
             item { EmptyInbox() }
+        }
+
+        if (captureLog.isNotEmpty()) {
+            item {
+                TextButton(onClick = { showLog = !showLog }) {
+                    Text(
+                        if (showLog) "Hide recent activity" else
+                            "What Spendly checked recently (${captureLog.size})",
+                    )
+                }
+            }
+            if (showLog) {
+                item {
+                    Text(
+                        "Notifications that mentioned money, and what happened to each. " +
+                            "Only the app name and amount are kept — never the message.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+                items(captureLog, key = { "${it.at}-${it.appLabel}-${it.detail.hashCode()}" }) { event ->
+                    CaptureLogRow(event)
+                }
+                item {
+                    TextButton(onClick = viewModel::clearCaptureLog) { Text("Clear") }
+                }
+            }
         }
     }
 }
@@ -303,6 +343,85 @@ private fun EnableAccessCard() {
                 Text("Open notification access")
             }
         }
+    }
+}
+
+@Composable
+private fun AlertsBlockedCard() {
+    val context = LocalContext.current
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "Confirm prompts are blocked",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Spendly is reading your notifications, but Android is not letting it " +
+                    "post the \"tap to confirm\" alert. Detected spends wait here " +
+                    "silently until you confirm them.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }) { Text("Allow notifications") }
+        }
+    }
+}
+
+private val logTime = DateTimeFormatter.ofPattern("d MMM, HH:mm")
+
+@Composable
+private fun CaptureLogRow(event: CaptureLog.Event) {
+    val (label, tint) = when (event.outcome) {
+        CaptureLog.Outcome.QUEUED -> "Queued" to MaterialTheme.colorScheme.primary
+        CaptureLog.Outcome.SAVED -> "Saved" to MaterialTheme.colorScheme.primary
+        CaptureLog.Outcome.IGNORED -> "Ignored" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = tint,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                event.appLabel + (event.amount?.let { " · $it" } ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                Instant.ofEpochMilli(event.at).atZone(ZoneId.systemDefault()).format(logTime),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            event.detail,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

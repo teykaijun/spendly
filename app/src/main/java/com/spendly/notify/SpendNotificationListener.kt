@@ -4,14 +4,23 @@ import android.app.Notification
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import android.os.Parcelable
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import com.spendly.data.CaptureLog
+import com.spendly.data.Money
+import com.spendly.data.Prefs
 import com.spendly.data.SpendRepository
+import com.spendly.parser.AmountDetector
+import com.spendly.parser.NotificationText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -29,6 +38,7 @@ class SpendNotificationListener : NotificationListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val repo: SpendRepository by lazy { SpendRepository.get(applicationContext) }
+    private val log: CaptureLog by lazy { CaptureLog.get(applicationContext) }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         // Ongoing notifications are progress bars, media players and foreground
@@ -36,14 +46,22 @@ class SpendNotificationListener : NotificationListenerService() {
         if (sbn.isOngoing) return
         if (sbn.packageName == packageName) return
 
-        val extras = sbn.notification?.extras ?: return
+        val notification = sbn.notification ?: return
+        // A group summary restates its children ("3 new messages"). The children
+        // carry the actual transaction, and reading both would double-count.
+        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
+
+        val extras = notification.extras ?: return
         val title = extras.readText(Notification.EXTRA_TITLE)
-        val body = listOfNotNull(
-            extras.readText(Notification.EXTRA_BIG_TEXT),
-            extras.readText(Notification.EXTRA_TEXT),
-            extras.readText(Notification.EXTRA_SUB_TEXT),
-            extras.readText(Notification.EXTRA_INFO_TEXT),
-        ).distinct().joinToString(" ")
+            ?: extras.readText(Notification.EXTRA_TITLE_BIG)
+        val body = NotificationText.combine(
+            bigText = extras.readText(Notification.EXTRA_BIG_TEXT),
+            text = extras.readText(Notification.EXTRA_TEXT),
+            subText = extras.readText(Notification.EXTRA_SUB_TEXT),
+            infoText = extras.readText(Notification.EXTRA_INFO_TEXT),
+            textLines = extras.readLines(Notification.EXTRA_TEXT_LINES),
+            latestMessage = extras.latestChatMessage(),
+        )
 
         if (title.isNullOrBlank() && body.isBlank()) return
 
@@ -53,7 +71,9 @@ class SpendNotificationListener : NotificationListenerService() {
 
         scope.launch {
             try {
-                when (val result = repo.ingestNotification(pkg, label, title, body, postedAt)) {
+                val result = repo.ingestNotification(pkg, label, title, body, postedAt)
+                record(label, title, body, result)
+                when (result) {
                     is SpendRepository.Ingest.Queued ->
                         PendingAlerts.show(applicationContext, result.preview)
 
@@ -75,6 +95,57 @@ class SpendNotificationListener : NotificationListenerService() {
         }
     }
 
+    /**
+     * Writes the outcome to the capture log. Ignored notifications are only
+     * logged when they contained an amount — otherwise every chat message and
+     * weather update would fill the log with noise.
+     */
+    private fun record(
+        label: String,
+        title: String?,
+        body: String,
+        result: SpendRepository.Ingest,
+    ) {
+        val now = System.currentTimeMillis()
+        val event = when (result) {
+            is SpendRepository.Ingest.Queued -> CaptureLog.Event(
+                at = now,
+                appLabel = label,
+                outcome = CaptureLog.Outcome.QUEUED,
+                detail = "Waiting in the Inbox for you to confirm",
+                amount = Money.format(result.preview.amountMinor, result.preview.currency),
+            )
+
+            is SpendRepository.Ingest.Saved -> CaptureLog.Event(
+                at = now,
+                appLabel = label,
+                outcome = CaptureLog.Outcome.SAVED,
+                detail = "Saved automatically",
+                amount = Money.format(result.amountMinor, result.currency),
+            )
+
+            is SpendRepository.Ingest.Ignored -> {
+                if (!result.worthLogging) return
+                val base = Prefs.get(applicationContext).baseCurrency.value
+                val mentionsMoney = result.amountMinor != null ||
+                    AmountDetector.findAll("${title.orEmpty()} $body", base).isNotEmpty()
+                if (!mentionsMoney) return
+                CaptureLog.Event(
+                    at = now,
+                    appLabel = label,
+                    outcome = CaptureLog.Outcome.IGNORED,
+                    detail = result.reason,
+                    amount = if (result.amountMinor != null && result.currency != null) {
+                        Money.format(result.amountMinor, result.currency)
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+        log.record(event)
+    }
+
     override fun onListenerConnected() {
         super.onListenerConnected()
         scope.launch {
@@ -82,8 +153,35 @@ class SpendNotificationListener : NotificationListenerService() {
         }
     }
 
-    private fun android.os.Bundle.readText(key: String): String? =
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    private fun Bundle.readText(key: String): String? =
         getCharSequence(key)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun Bundle.readLines(key: String): List<String> =
+        getCharSequenceArray(key)
+            ?.mapNotNull { it?.toString()?.trim()?.takeIf { line -> line.isNotEmpty() } }
+            .orEmpty()
+
+    /**
+     * The newest message of a chat-style notification. Bank alerts that arrive
+     * by SMS are posted this way by most messaging apps, and the collapsed text
+     * is sometimes only "2 new messages", so this is where the words live.
+     */
+    @Suppress("DEPRECATION")
+    private fun Bundle.latestChatMessage(): String? {
+        val messages: Array<Parcelable>? =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                getParcelableArray(Notification.EXTRA_MESSAGES, Parcelable::class.java)
+            } else {
+                getParcelableArray(Notification.EXTRA_MESSAGES)
+            }
+        val last = messages?.lastOrNull() as? Bundle ?: return null
+        return last.getCharSequence("text")?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+    }
 
     private fun appLabel(pkg: String): String = try {
         val pm = packageManager

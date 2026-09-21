@@ -16,7 +16,7 @@ import java.util.Locale
  * entry point, which is why every getter goes back to disk-backed state rather
  * than an in-memory cache owned by the UI.
  */
-class Prefs private constructor(private val sp: SharedPreferences) {
+class Prefs internal constructor(private val sp: SharedPreferences) {
 
     private val _baseCurrency = MutableStateFlow(sp.getString(KEY_CURRENCY, null) ?: deviceCurrency())
     val baseCurrency: StateFlow<String> = _baseCurrency.asStateFlow()

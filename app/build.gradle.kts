@@ -112,6 +112,10 @@ android {
         disable += "ObsoleteSdkInt"
         // We pin versions to what this machine's SDK and Gradle cache hold.
         disable += "AndroidGradlePluginVersion"
+        // Test libraries are pinned to match their runtime counterparts —
+        // kotlinx-coroutines-test must equal the kotlinx-coroutines-core the app
+        // resolves (1.9.0), so "a newer version exists" is not actionable.
+        disable += "NewerVersionAvailable"
         warningsAsErrors = false
         abortOnError = true
     }
@@ -163,4 +167,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

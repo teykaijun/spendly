@@ -3,6 +3,7 @@ package com.spendly.ui.inbox
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.spendly.data.CaptureLog
 import com.spendly.data.Category
 import com.spendly.data.PendingEntry
 import com.spendly.data.Prefs
@@ -39,8 +40,21 @@ class InboxViewModel(app: Application) : AndroidViewModel(app) {
     private val _listenerEnabled = MutableStateFlow(SpendNotificationListener.isEnabled(app))
     val listenerEnabled: StateFlow<Boolean> = _listenerEnabled.asStateFlow()
 
+    /** Whether Android will actually show the tap-to-confirm alerts. */
+    private val _alertsAllowed = MutableStateFlow(PendingAlerts.hasPostPermission(app))
+    val alertsAllowed: StateFlow<Boolean> = _alertsAllowed.asStateFlow()
+
+    val alertsWanted: StateFlow<Boolean> = prefs.notifyOnDetect
+
+    /** What the notification reader recently did, and why. */
+    val captureLog: StateFlow<List<CaptureLog.Event>> = CaptureLog.get(app).events
+
+    fun clearCaptureLog() = CaptureLog.get(getApplication()).clear()
+
+    /** Both are granted in system settings, which gives no callback — so re-read on resume. */
     fun refreshListenerState() {
         _listenerEnabled.value = SpendNotificationListener.isEnabled(getApplication())
+        _alertsAllowed.value = PendingAlerts.hasPostPermission(getApplication())
     }
 
     /** Which row has its category picker open. */

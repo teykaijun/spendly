@@ -14,7 +14,7 @@ import java.time.ZoneId
  * The single place that knows how a notification becomes a spend, and the only
  * type the UI and the notification listener both talk to.
  */
-class SpendRepository private constructor(
+class SpendRepository internal constructor(
     private val db: AppDatabase,
     private val prefs: Prefs,
     /** Application, not a bare Context: this instance is a process-wide singleton. */
@@ -98,6 +98,52 @@ class SpendRepository private constructor(
         notifyWidget()
     }
 
+    /**
+     * Applies an edit to an existing entry, keeping its id, source and
+     * createdAt.
+     *
+     * The dedupe key is deliberately left alone. It describes the *original*
+     * notification or statement line, which is exactly what should keep
+     * matching: after correcting an imported amount, re-importing the same
+     * statement must still recognise that row as already imported.
+     *
+     * Recategorising an entry that came from a notification also teaches the
+     * merchant rule — the same thing correcting a guess in the Inbox does — so
+     * the next notification from that merchant lands in the right place.
+     * Manual entries were never a guess, so they teach nothing.
+     */
+    suspend fun editEntry(
+        original: SpendEntry,
+        amountMinor: Long,
+        currency: String,
+        categoryId: Long,
+        merchant: String?,
+        note: String?,
+        date: LocalDate,
+    ) {
+        require(amountMinor > 0) { "An entry must have a positive amount" }
+
+        val updated = original.copy(
+            amountMinor = amountMinor,
+            currency = currency,
+            categoryId = categoryId,
+            merchant = merchant?.trim()?.takeIf { it.isNotEmpty() },
+            note = note?.trim()?.takeIf { it.isNotEmpty() },
+            epochDay = date.toEpochDay(),
+        )
+        db.entryDao().update(updated)
+
+        if (categoryId != original.categoryId) {
+            db.categoryDao().bumpUsage(categoryId)
+            if (original.source == Source.NOTIFICATION) {
+                NotificationParser.merchantKey(updated.merchant)?.let { key ->
+                    db.merchantRuleDao().upsert(MerchantRule(merchantKey = key, categoryId = categoryId))
+                }
+            }
+        }
+        notifyWidget()
+    }
+
     suspend fun deleteEntry(id: Long) {
         db.entryDao().deleteById(id)
         notifyWidget()
@@ -110,8 +156,19 @@ class SpendRepository private constructor(
     // ------------------------------------------------------------------
 
     sealed interface Ingest {
-        /** Not a spend, a duplicate, or from a muted app. */
-        data class Ignored(val reason: String) : Ingest
+        /**
+         * Not a spend, a duplicate, or from a muted app. [reason] is shown to
+         * the user in the capture log, so it is written to be acted on. The
+         * amount is kept when the parser did find one, because "RM25.50 was
+         * ignored" is far more useful than "something was ignored".
+         */
+        data class Ignored(
+            val reason: String,
+            val amountMinor: Long? = null,
+            val currency: String? = null,
+            /** Whether this is worth showing — a muted app's chatter is not. */
+            val worthLogging: Boolean = true,
+        ) : Ingest
 
         /** Waiting in the inbox for one-tap confirmation. */
         data class Queued(val pendingId: Long, val preview: PendingEntry) : Ingest
@@ -145,9 +202,11 @@ class SpendRepository private constructor(
             defaultEnabled = NotificationParser.defaultEnabledFor(packageName),
         )
 
-        if (prefs.capturePaused.value) return Ingest.Ignored("capture paused")
+        if (prefs.capturePaused.value) {
+            return Ingest.Ignored("Capture is paused in Settings")
+        }
         if (db.watchedAppDao().isEnabled(packageName) == false) {
-            return Ingest.Ignored("app muted")
+            return Ingest.Ignored("$appLabel is switched off in Settings", worthLogging = false)
         }
 
         val parsed = NotificationParser.parse(
@@ -156,10 +215,18 @@ class SpendRepository private constructor(
             packageName = packageName,
             appLabel = appLabel,
             baseCurrency = prefs.baseCurrency.value,
-        ) ?: return Ingest.Ignored("not a spend")
+        ) ?: return Ingest.Ignored(
+            "Not read as a spend — no spending wording, or it looked like a " +
+                "refund, reload, promotion or security code",
+        )
 
         if (parsed.confidence < prefs.minConfidence.value) {
-            return Ingest.Ignored("confidence ${parsed.confidence} below threshold")
+            return Ingest.Ignored(
+                "Only ${parsed.confidence}% sure, below your sensitivity of " +
+                    "${prefs.minConfidence.value}% — lower it in Settings to catch these",
+                amountMinor = parsed.amountMinor,
+                currency = parsed.currency,
+            )
         }
 
         val merchantKey = NotificationParser.merchantKey(parsed.merchant)
@@ -172,10 +239,16 @@ class SpendRepository private constructor(
 
         val since = postedAt - dedupeWindowMs
         if (db.pendingDao().countByDedupeKeySince(dedupeKey, since) > 0) {
-            return Ingest.Ignored("duplicate (already queued)")
+            return Ingest.Ignored(
+                "Already waiting in the Inbox",
+                parsed.amountMinor, parsed.currency, worthLogging = false,
+            )
         }
         if (db.entryDao().countByDedupeKeySince(dedupeKey, since) > 0) {
-            return Ingest.Ignored("duplicate (already saved)")
+            return Ingest.Ignored(
+                "Already recorded",
+                parsed.amountMinor, parsed.currency, worthLogging = false,
+            )
         }
 
         val categoryId = resolveCategory(merchantKey, parsed.merchant, "${title.orEmpty()} ${text.orEmpty()}")
@@ -217,7 +290,12 @@ class SpendRepository private constructor(
             dedupeKey = dedupeKey,
         )
         val id = db.pendingDao().insert(pending)
-        if (id == -1L) return Ingest.Ignored("duplicate (unique key)")
+        if (id == -1L) {
+            return Ingest.Ignored(
+                "Already waiting in the Inbox",
+                parsed.amountMinor, parsed.currency, worthLogging = false,
+            )
+        }
         db.watchedAppDao().bumpDetected(packageName)
         return Ingest.Queued(id, pending.copy(id = id))
     }

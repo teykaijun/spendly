@@ -61,8 +61,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spendly.data.Category
+import com.spendly.data.EntryWithCategory
 import com.spendly.data.Money
 import com.spendly.ui.components.EntryRow
+import com.spendly.ui.edit.EditEntrySheet
 import com.spendly.ui.theme.AmountDisplayStyle
 import com.spendly.ui.theme.AmountDisplayStyleCompact
 import kotlinx.coroutines.CoroutineScope
@@ -98,6 +100,7 @@ fun QuickAddScreen(
     val haptics = LocalHapticFeedback.current
     var showDatePicker by remember { mutableStateOf(false) }
     var showCurrencyPicker by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<EntryWithCategory?>(null) }
 
     fun commit(categoryId: Long?) {
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -141,6 +144,7 @@ fun QuickAddScreen(
                 DayEntries(
                     entries = entriesToday,
                     onDelete = viewModel::deleteEntry,
+                    onEdit = { editing = it },
                 )
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -203,6 +207,10 @@ fun QuickAddScreen(
             categoryChosen = state.selectedCategoryId != null,
             onSave = { commit(null) },
         )
+    }
+
+    editing?.let { item ->
+        EditEntrySheet(item = item, onDismiss = { editing = null })
     }
 
     if (showCurrencyPicker) {
@@ -454,8 +462,9 @@ private fun AmountDisplay(amountMinor: Long, currency: String, compact: Boolean)
 
 @Composable
 private fun DayEntries(
-    entries: List<com.spendly.data.EntryWithCategory>,
+    entries: List<EntryWithCategory>,
     onDelete: (Long) -> Unit,
+    onEdit: (EntryWithCategory) -> Unit,
 ) {
     Column(
         Modifier
@@ -465,7 +474,11 @@ private fun DayEntries(
             .verticalScroll(rememberScrollState()),
     ) {
         entries.forEach { item ->
-            EntryRow(item = item, onDelete = { onDelete(item.entry.id) })
+            EntryRow(
+                item = item,
+                onDelete = { onDelete(item.entry.id) },
+                onClick = { onEdit(item) },
+            )
         }
     }
 }

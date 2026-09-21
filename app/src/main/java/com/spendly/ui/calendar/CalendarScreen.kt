@@ -50,9 +50,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.spendly.data.EntryWithCategory
 import com.spendly.data.Money
 import com.spendly.ui.components.EntryRow
 import com.spendly.ui.components.StatTile
+import com.spendly.ui.edit.EditEntrySheet
 import com.spendly.ui.export.ExportSheet
 import com.spendly.ui.theme.heatLevel
 import com.spendly.ui.theme.heatmapRamp
@@ -66,6 +68,7 @@ import java.util.Locale
 @Composable
 fun CalendarScreen(viewModel: CalendarViewModel = viewModel()) {
     var showExportSheet by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<EntryWithCategory?>(null) }
     val month by viewModel.month.collectAsStateWithLifecycle()
     val days by viewModel.days.collectAsStateWithLifecycle()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -140,6 +143,7 @@ fun CalendarScreen(viewModel: CalendarViewModel = viewModel()) {
                     EntryRow(
                         item = item,
                         onDelete = { viewModel.deleteEntry(item.entry.id) },
+                        onClick = { editing = item },
                         modifier = Modifier.padding(horizontal = 12.dp),
                     )
                 }
@@ -173,6 +177,10 @@ fun CalendarScreen(viewModel: CalendarViewModel = viewModel()) {
 
     if (showExportSheet) {
         ExportSheet(onDismiss = { showExportSheet = false })
+    }
+
+    editing?.let { item ->
+        EditEntrySheet(item = item, onDismiss = { editing = null })
     }
 }
 
