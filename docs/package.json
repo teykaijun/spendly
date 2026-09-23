@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "//": "Marks the .js files here as ES modules for Node, so the browser modules can be unit tested directly. Browsers ignore this file; GitHub Pages just serves it.",
+  "scripts": {
+    "test": "node --test test/logic.test.js"
+  }
+}

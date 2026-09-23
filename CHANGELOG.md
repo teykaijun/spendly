@@ -4,6 +4,22 @@ Version numbers follow the tag on the GitHub release (`v1.0` → `1.0`). The
 updater derives an Android `versionCode` from the tag, two digits per part, so
 every component must stay under 100.
 
+## Web app for iPhone
+
+Not an Android release — a second build, published from `docs/` to GitHub Pages.
+
+iOS gives apps no way to read other apps' notifications, so the automatic
+capture cannot exist there and no native iOS app would have it either. The web
+app covers everything else: two-tap entry, the calendar heatmap, editing,
+multi-currency, PDF statement import with reloads excluded, the date-range
+filter and CSV export. Add it to the Home Screen from Safari and it launches
+full screen and works offline.
+
+Money handling, reload detection and the statement parser are ported from the
+Kotlin along with their tests, so both platforms read a statement line the same
+way. Data lives in the browser on that device only, which makes the CSV export
+the backup.
+
 ## v1.1 — notification spends now reach your records
 
 ### Fixed

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "spendly-web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--experimental-strip-types", "-e", "const http=require('http'),fs=require('fs'),p=require('path');const root=p.join(process.cwd(),'docs');const T={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png'};http.createServer((q,s)=>{let f=decodeURIComponent(q.url.split('?')[0]);if(f==='/')f='/index.html';const full=p.join(root,f);if(!full.startsWith(root)){s.writeHead(403);return s.end();}fs.readFile(full,(e,d)=>{if(e){s.writeHead(404);return s.end('not found');}s.writeHead(200,{'Content-Type':T[p.extname(full)]||'application/octet-stream','Cache-Control':'no-store'});s.end(d);});}).listen(4173,()=>console.log('serving docs/ on http://localhost:4173'));"],
+      "port": 4173
+    }
+  ]
+}

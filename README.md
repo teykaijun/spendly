@@ -24,6 +24,11 @@ Your spending data never leaves the phone. The only network access in the app
 is the optional updater, and it only runs when you press the button — see
 [Privacy](#privacy).
 
+> **On an iPhone?** There is an installable web app —
+> **[open it in Safari](https://teykaijun.github.io/spendly/)** and Add to Home
+> Screen. It does everything above *except* read notifications, which iOS does
+> not permit any app to do. See [On iPhone](#on-iphone).
+
 ---
 
 ## Getting it onto your phone
@@ -555,6 +560,19 @@ app/src/main/java/com/spendly/
     └── theme/      Material 3 theme and the heatmap colour ramp
 ```
 
+The iPhone web app is separate, in `docs/`:
+
+```
+docs/
+├── index.html, css/, icons/     the shell
+├── js/money.js, transfer.js,    logic ported from Kotlin, with its tests
+│   statement.js
+├── js/db.js                     IndexedDB storage
+├── js/views/                    add, calendar, edit, data, settings
+├── sw.js                        offline cache
+└── test/logic.test.js           node --test
+```
+
 Key decisions worth knowing about:
 
 - **Money is stored as `Long` minor units**, never floating point. Currencies
@@ -605,6 +623,60 @@ Pinned to what was installed on the build machine, to keep a clean build cheap:
 - Categories are fixed to the built-in ten; adding your own isn't wired up yet.
 
 ---
+
+## On iPhone
+
+There is **no native iOS app**, and there cannot be a full one. iOS gives apps
+no way to read other apps' notifications — there is no equivalent of Android's
+`NotificationListenerService`, notification extensions only see your own app's
+pushes, and Shortcuts has no "a notification arrived" trigger. So the automatic
+capture that makes the Android version worth having is not buildable on iOS by
+anyone, at any price.
+
+What there is instead is an **installable web app**, which covers everything
+else:
+
+**→ [spendly on the web](https://teykaijun.github.io/spendly/)**
+
+On the iPhone, open that in Safari, tap **Share**, then **Add to Home Screen**.
+It then launches full screen with its own icon, works offline, and behaves like
+an app.
+
+| | Android | iPhone (web app) |
+|---|---|---|
+| Two-tap keypad entry | ✅ | ✅ |
+| Calendar heatmap | ✅ | ✅ |
+| Edit entries, multi-currency | ✅ | ✅ |
+| PDF statement import | ✅ | ✅ |
+| Range filter, CSV export | ✅ | ✅ |
+| **Reads bank notifications** | ✅ | ❌ *impossible on iOS* |
+| Home-screen widget | ✅ | ❌ |
+| In-app update button | ✅ | not needed — it updates on open |
+
+On iPhone the **PDF statement import does the job that notification capture does
+on Android**: import a month's statement and the spending is filled in, minus
+reloads, with every row shown for review first.
+
+### Where the data lives
+
+In the browser's storage on that device only. No account, no server, nothing
+uploaded — the same privacy position as the Android app, with the same
+consequence: **the CSV export is your backup.** Deleting the web app or clearing
+website data removes everything, and there is no copy anywhere else.
+
+### Shared logic, shared tests
+
+Money handling, reload detection and the statement parser are ported from the
+Kotlin, and the Kotlin tests are ported with them, so the two platforms agree
+about what a statement line means:
+
+```bash
+node --test docs/test/logic.test.js
+```
+
+The web app is plain ES modules with no build step — what is in `docs/` is
+exactly what is served. It lives in `docs/` because that is the folder GitHub
+Pages can publish from a branch without any CI.
 
 ## Coffee
 

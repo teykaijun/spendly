@@ -1,0 +1,451 @@
+/* Spendly — web app styling.
+ *
+ * Colours mirror the Android build, including the calendar heatmap ramp, which
+ * was validated for monotone lightness, visible gaps between steps, a single
+ * hue, and contrast against these exact surfaces in both themes.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --surface: #fbfdfa;
+  --surface-2: #eef3ef;
+  --surface-3: #e2e9e4;
+  --text: #15201b;
+  --text-dim: #5a6560;
+  --primary: #0c7a5e;
+  --on-primary: #ffffff;
+  --danger: #ba1a1a;
+  --border: #d7e0da;
+
+  /* Heatmap, light. Level 1 deliberately is not near-white: a barely tinted
+     cell reads as an empty day, so a small spend would look like no spend. */
+  --heat-1: #6cc4a8;
+  --heat-2: #41ae8d;
+  --heat-3: #1f9474;
+  --heat-4: #13795e;
+  --heat-5: #0a5c47;
+  --heat-0: rgba(0, 0, 0, 0.05);
+  --heat-ink-dark: #0b1f19;
+  --heat-ink-light: #ffffff;
+
+  --radius: 14px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #101418;
+    --surface-2: #1a211d;
+    --surface-3: #242c27;
+    --text: #ecf2ee;
+    --text-dim: #a9b5af;
+    --primary: #6ed6b6;
+    --on-primary: #00382a;
+    --danger: #ffb4ab;
+    --border: #2d3832;
+
+    --heat-1: #175a48;
+    --heat-2: #1d7a61;
+    --heat-3: #26997c;
+    --heat-4: #3bb897;
+    --heat-5: #76d9ba;
+    --heat-0: rgba(255, 255, 255, 0.06);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--surface);
+  color: var(--text);
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Stop the rubber-band scroll revealing white behind the app, and kill the
+     grey flash iOS paints on every tap. */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  /* dvh tracks Safari's collapsing toolbar; vh is the fallback. */
+  height: 100vh;
+  height: 100dvh;
+}
+
+button, input, select {
+  font: inherit;
+  color: inherit;
+  /* manipulation removes the 300ms double-tap-to-zoom delay. */
+  touch-action: manipulation;
+}
+
+.view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-top: var(--safe-top);
+}
+
+/* ---------------------------------------------------------------- tab bar */
+
+.tabbar {
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  padding-bottom: var(--safe-bottom);
+  flex: 0 0 auto;
+}
+
+.tab {
+  flex: 1;
+  background: none;
+  border: 0;
+  padding: 8px 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] { color: var(--primary); }
+.tab-icon { font-size: 20px; line-height: 1; }
+.tab-label { font-size: 11px; }
+
+/* -------------------------------------------------------------- add screen */
+
+.add-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0 12px;
+}
+
+.datestrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px 4px;
+}
+
+.datestrip .day { font-weight: 600; }
+.datestrip .total { color: var(--text-dim); font-size: 14px; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0 8px; }
+
+.chip {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+
+.amount-area {
+  flex: 1;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.amount {
+  font-size: clamp(34px, 13vw, 60px);
+  font-weight: 300;
+  /* Tabular figures stop the number jittering as digits are typed. */
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.amount.zero { color: var(--text-dim); opacity: 0.55; }
+
+.currency-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px;
+  background: var(--surface-3);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+/* Loud on purpose: the choice persists between entries, so being in a
+   non-default currency must be impossible to miss. */
+.currency-chip.foreign {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+}
+
+.catstrip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 0;
+  scrollbar-width: none;
+}
+.catstrip::-webkit-scrollbar { display: none; }
+
+.cat {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 18px;
+  padding: 9px 14px;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cat[aria-pressed="true"] { color: #fff; }
+.cat:disabled { opacity: 0.45; }
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px 0 8px;
+}
+
+.key {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 500;
+  padding: 14px 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.key:active { background: var(--border); }
+
+.primary-btn {
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 17px;
+  font-weight: 600;
+  padding: 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.primary-btn:disabled { opacity: 0.4; }
+
+.hint { text-align: center; font-size: 13px; color: var(--primary); padding-bottom: 4px; }
+
+/* -------------------------------------------------------------- calendar */
+
+.pad { padding: 12px 16px; }
+.row { display: flex; align-items: center; gap: 10px; }
+.spread { justify-content: space-between; }
+.grow { flex: 1; }
+.muted { color: var(--text-dim); font-size: 13px; }
+.h1 { font-size: 20px; font-weight: 600; }
+.h2 { font-size: 16px; font-weight: 600; }
+
+.iconbtn {
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 20px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.iconbtn:active { background: var(--surface-3); }
+
+.stats { display: flex; gap: 22px; padding: 4px 16px 10px; }
+.stat-label { font-size: 12px; color: var(--text-dim); }
+.stat-value { font-size: 20px; font-weight: 600; }
+
+.weekdays, .weekrow { display: grid; grid-template-columns: repeat(7, 1fr); }
+.weekdays { padding: 0 12px 4px; }
+.weekdays span { text-align: center; font-size: 11px; color: var(--text-dim); }
+.grid { padding: 0 12px; }
+
+.day {
+  aspect-ratio: 1;
+  margin: 2px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--heat-0);
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.day.blank { background: none; cursor: default; }
+.day .amt { font-size: 8px; line-height: 1; }
+.day.today { outline: 2px solid var(--primary); outline-offset: -2px; }
+.day.sel { outline: 2px solid var(--text); outline-offset: -2px; }
+.day .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-dim); }
+
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+.bar-track { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; }
+
+/* ---------------------------------------------------------------- entries */
+
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  width: 100%;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.entry:active { background: var(--surface-2); }
+
+.entry .badge {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex: 0 0 auto;
+}
+.entry .main { flex: 1; min-width: 0; }
+.entry .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry .sub { font-size: 12px; color: var(--text-dim); }
+.entry .amt { font-weight: 600; }
+
+/* ----------------------------------------------------------------- sheets */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  z-index: 50;
+}
+
+.sheet {
+  background: var(--surface);
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: 20px 20px 0 0;
+  padding: 16px 16px calc(16px + var(--safe-bottom));
+  animation: rise 0.18s ease-out;
+}
+
+@keyframes rise { from { transform: translateY(14px); opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+
+.field { width: 100%; margin: 6px 0; }
+.field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 3px; }
+
+.field input, .field select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  /* 16px keeps iOS from zooming the page when a field is focused. */
+  font-size: 16px;
+}
+
+.field input.bad { border-color: var(--danger); }
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.btn.danger { color: var(--danger); border-color: transparent; background: none; }
+.btn.plain { border-color: transparent; background: none; }
+
+.list { max-height: 44vh; overflow-y: auto; }
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin: 10px 0;
+  background: var(--surface-2);
+}
+.card.warn { border-color: var(--danger); }
+
+.check { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.check input { width: 20px; height: 20px; flex: 0 0 auto; }
+
+.toast-host {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: calc(66px + var(--safe-bottom));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.toast {
+  background: var(--text);
+  color: var(--surface);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  pointer-events: auto;
+  max-width: 92vw;
+}
+
+.toast button {
+  background: none;
+  border: 0;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.empty { text-align: center; color: var(--text-dim); padding: 48px 24px; }
